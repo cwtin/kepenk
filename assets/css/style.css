@@ -132,3 +132,6 @@ button,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .menuBtn{width:46px!important;height:46px!important;flex:0 0 46px!important}
 }
 @media (max-width:1000px){header.is-scrolled{border-bottom-color:rgba(244,194,31,.22)!important;box-shadow:0 10px 34px rgba(0,0,0,.38)}}
+
+/* Facebook quick-contact button */
+.social-btn.facebook{background:#1877f2}
