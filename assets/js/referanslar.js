@@ -17,19 +17,45 @@
   const isVideo=item=>item.mediaType==='video'||item.resourceType==='video'||/\.(mp4|webm|mov)(?:[?#]|$)/i.test(item.url||'');
   let activeVideo=null;
 
+  function removeActiveVideo() {
+    if (!activeVideo) return;
+    activeVideo.pause();
+    activeVideo.removeAttribute('src');
+    activeVideo.load();
+    activeVideo.remove();
+    activeVideo = null;
+  }
   function show(i) {
     if (!paths.length) return;
-    current=(i+paths.length)%paths.length;
-    if(activeVideo){activeVideo.pause();activeVideo.remove();activeVideo=null;}
-    const item=paths[current];
-    if(isVideo(item)){
-      image.hidden=true;
-      const video=document.createElement('video');video.src=item.url;video.controls=true;video.autoplay=true;video.playsInline=true;video.preload='metadata';video.className='lb-video';video.setAttribute('aria-label',item.title||'Referans videosu');image.insertAdjacentElement('afterend',video);activeVideo=video;
-    }else{image.hidden=false;image.src=item.url;image.alt=item.title;}
-    counter.textContent=`${current+1} / ${paths.length}`;
+    current = (i + paths.length) % paths.length;
+    removeActiveVideo();
+    const item = paths[current];
+    // The previous image must not occupy space when switching to a video.
+    image.hidden = true;
+    image.style.display = 'none';
+    if (isVideo(item)) {
+      const video = document.createElement('video');
+      video.className = 'lb-video';
+      video.controls = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.preload = 'metadata';
+      video.autoplay = false; // iOS requires an explicit tap; avoid surprise fullscreen/layout changes.
+      video.src = item.url;
+      video.setAttribute('aria-label', item.title || 'Referans videosu');
+      video.addEventListener('click', event => event.stopPropagation());
+      image.insertAdjacentElement('afterend', video);
+      activeVideo = video;
+    } else {
+      image.src = item.url;
+      image.alt = item.title || 'Referans fotoğrafı';
+      image.hidden = false;
+      image.style.display = 'block';
+    }
+    counter.textContent = `${current + 1} / ${paths.length}`;
   }
   function open(i) {show(i);box.classList.add('open');box.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
-  function close() {if(activeVideo){activeVideo.pause();activeVideo.remove();activeVideo=null;}image.hidden=false;box.classList.remove('open');box.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+  function close() {removeActiveVideo();image.hidden=false;image.style.display='block';box.classList.remove('open');box.setAttribute('aria-hidden','true');document.body.style.overflow='';}
   function draw() {
     gallery.replaceChildren();
     paths.forEach((item,i) => {
@@ -52,8 +78,8 @@
   box.addEventListener('click', e=>{if(e.target===box)close();});
   document.addEventListener('keydown',e=>{if(!box.classList.contains('open'))return;if(e.key==='Escape')close();if(e.key==='ArrowLeft')show(current-1);if(e.key==='ArrowRight')show(current+1);});
   let touchX=0;
-  box.addEventListener('touchstart',e=>touchX=e.changedTouches[0].clientX,{passive:true});
-  box.addEventListener('touchend',e=>{const d=e.changedTouches[0].clientX-touchX;if(Math.abs(d)>45)show(current+(d<0?1:-1));},{passive:true});
+  box.addEventListener('touchstart',e=>{if(activeVideo)return;touchX=e.changedTouches[0].clientX;},{passive:true});
+  box.addEventListener('touchend',e=>{if(activeVideo)return;const d=e.changedTouches[0].clientX-touchX;if(Math.abs(d)>45)show(current+(d<0?1:-1));},{passive:true});
 
   try {
     const cms=await window.kepenkCmsReady;
