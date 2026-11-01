@@ -14,33 +14,36 @@
   }));
   let paths = staticRefs.slice();
   let current = 0;
+  const isVideo=item=>item.mediaType==='video'||item.resourceType==='video'||/\.(mp4|webm|mov)(?:[?#]|$)/i.test(item.url||'');
+  let activeVideo=null;
 
   function show(i) {
     if (!paths.length) return;
-    current = (i + paths.length) % paths.length;
-    image.src = paths[current].url;
-    image.alt = paths[current].title;
-    counter.textContent = `${current+1} / ${paths.length}`;
+    current=(i+paths.length)%paths.length;
+    if(activeVideo){activeVideo.pause();activeVideo.remove();activeVideo=null;}
+    const item=paths[current];
+    if(isVideo(item)){
+      image.hidden=true;
+      const video=document.createElement('video');video.src=item.url;video.controls=true;video.autoplay=true;video.playsInline=true;video.preload='metadata';video.className='lb-video';video.setAttribute('aria-label',item.title||'Referans videosu');image.insertAdjacentElement('afterend',video);activeVideo=video;
+    }else{image.hidden=false;image.src=item.url;image.alt=item.title;}
+    counter.textContent=`${current+1} / ${paths.length}`;
   }
-  function open(i) {
-    show(i);box.classList.add('open');box.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  }
-  function close() {box.classList.remove('open');box.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+  function open(i) {show(i);box.classList.add('open');box.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
+  function close() {if(activeVideo){activeVideo.pause();activeVideo.remove();activeVideo=null;}image.hidden=false;box.classList.remove('open');box.setAttribute('aria-hidden','true');document.body.style.overflow='';}
   function draw() {
     gallery.replaceChildren();
     paths.forEach((item,i) => {
       const button = document.createElement('button');
       button.className='pro-item';button.type='button';button.setAttribute('aria-label',item.title+' büyüt');
-      const photo = document.createElement('img');
-      photo.src=item.url;photo.alt=item.title;photo.loading=i<6?'eager':'lazy';photo.decoding='async';
-      // A stale Firebase URL should not blank the gallery.
-      photo.addEventListener('error', () => {
-        if (item.fallback && photo.src !== new URL(item.fallback, location.href).href) photo.src=item.fallback;
-      });
-      button.appendChild(photo);button.addEventListener('click',()=>open(i));gallery.appendChild(button);
+      const video=isVideo(item);
+      const photo=document.createElement(video?'video':'img');
+      photo.src=item.url;
+      if(video){photo.preload='metadata';photo.muted=true;photo.playsInline=true;button.classList.add('video-item');}
+      else{photo.alt=item.title;photo.loading=i<6?'eager':'lazy';photo.decoding='async';photo.addEventListener('error',()=>{if(item.fallback&&photo.src!==new URL(item.fallback,location.href).href)photo.src=item.fallback;});}
+      button.appendChild(photo);if(video){const play=document.createElement('span');play.className='video-play';play.textContent='▶';button.appendChild(play)}button.addEventListener('click',()=>open(i));gallery.appendChild(button);
     });
     const count=document.querySelector('.refs-count');
-    if(count)count.textContent=paths.length+' PROJE FOTOĞRAFI';
+    if(count)count.textContent=paths.length+' FOTOĞRAF / VİDEO';
   }
   draw();
   box.querySelector('.lb-close').onclick=close;
@@ -79,7 +82,7 @@
           url=parsed.pathname.replace(/^\//,'');
         }
       }catch(_e){}
-      return {id,url,title:value.title||'Referans uygulaması',order:value.order??999,active:value.active!==false};
+      return {id,url,mediaType:value.mediaType||value.resourceType||'image',title:value.title||'Referans uygulaması',order:value.order??999,active:value.active!==false};
     }).filter(Boolean);
     const items=(imported?dynamic:[...staticRefs,...dynamic])
       .filter(item=>item.active!==false)
